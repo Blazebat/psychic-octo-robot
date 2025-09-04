@@ -1,0 +1,11 @@
+name = "youtube-proxy-worker"
+main = "workers.js"
+compatibility_date = "2025-09-04"
+
+# Optional: Set the worker route if you have a domain
+# routes = [
+#   { pattern = "yourdomain.com/*", zone_id = "YOUR_ZONE_ID" }
+# ]
+
+[vars]
+# You can define environment variables here if needed 
