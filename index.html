@@ -13,11 +13,7 @@
         .live-dot { width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-right: 5px; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        
-        /* Modal Animation */
-        #video-modal { transition: opacity 0.3s ease-in-out; }
-        #video-modal.hidden { display: none; opacity: 0; }
-        #video-modal.flex { display: flex; opacity: 1; }
+        .category-pill.active { background-color: #38bdf8; color: #000; border-color: #38bdf8; }
     </style>
 </head>
 <body class="pb-20">
@@ -31,8 +27,8 @@
                     <p class="text-[10px] text-sky-400 font-bold uppercase tracking-[0.2em]">By RageTV</p>
                 </div>
             </div>
-            <div id="status-tag" class="text-[10px] bg-white/10 px-3 py-1 rounded-full border border-white/20 text-slate-400 uppercase font-bold">
-                System Online
+            <div id="match-count" class="text-[10px] bg-white/10 px-3 py-1 rounded-full border border-white/20 text-slate-400 uppercase font-bold">
+                Loading...
             </div>
         </div>
     </nav>
@@ -43,32 +39,34 @@
     </div>
 
     <main class="container mx-auto px-4 py-8">
-        <div class="flex items-center justify-between mb-8">
-            <div class="flex items-center gap-2">
-                <span class="live-dot"></span>
-                <h2 class="text-xl font-extrabold uppercase italic tracking-tight">Live Match Center</h2>
-            </div>
+        <div class="flex items-center gap-2 mb-8">
+            <span class="live-dot"></span>
+            <h2 id="view-title" class="text-xl font-extrabold uppercase italic tracking-tight">All Live Matches</h2>
         </div>
 
         <div id="parties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <div class="animate-pulse bg-white/5 h-64 rounded-2xl"></div>
-            <div class="animate-pulse bg-white/5 h-64 rounded-2xl"></div>
-            <div class="animate-pulse bg-white/5 h-64 rounded-2xl"></div>
-        </div>
+            </div>
     </main>
 
     <div id="video-modal" class="fixed inset-0 z-[100] hidden bg-black/95 items-center justify-center p-4">
         <div class="relative w-full max-w-5xl aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-white/10">
-            <button onclick="closePlayer()" class="absolute top-4 right-4 z-[110] bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition">
-                CLOSE PLAYER
+            <button onclick="closePlayer()" class="absolute top-4 right-4 z-[110] bg-white/10 hover:bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all border border-white/20">
+                ✕
             </button>
-            <iframe id="player-frame" src="" class="w-full h-full" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+            <iframe id="player-frame" src="" class="w-full h-full" frameborder="0" 
+                allowfullscreen 
+                allow="autoplay; encrypted-media" 
+                sandbox="allow-forms allow-scripts allow-pointer-lock allow-same-origin allow-top-navigation">
+            </iframe>
         </div>
     </div>
 
     <script>
         const API_PARTIES = 'https://backend.streamcenter.live/api/Parties?pageNumber=1&pageSize=50';
         const API_CATEGORIES = 'https://backend.streamcenter.live/api/Categories';
+
+        let allParties = [];
+        let allCategories = [];
 
         async function init() {
             try {
@@ -77,25 +75,29 @@
                     fetch(API_PARTIES)
                 ]);
 
-                const categories = await catRes.json();
+                allCategories = await catRes.json();
                 const partiesData = await partyRes.json();
-                const parties = partiesData.items || partiesData;
+                allParties = partiesData.items || partiesData;
 
-                renderCategories(categories);
-                renderMatches(parties, categories);
+                renderCategories();
+                renderMatches(allParties);
+                updateCount(allParties.length);
             } catch (err) {
                 console.error("Initialization failed:", err);
-                document.getElementById('parties-grid').innerHTML = `<p class="col-span-full text-center text-red-400">Error loading data. Check console.</p>`;
             }
         }
 
-        function renderCategories(categories) {
+        function renderCategories() {
             const container = document.getElementById('category-list');
-            container.innerHTML = `<button onclick="filterByCat('all')" class="bg-sky-500 text-black px-5 py-2 rounded-full text-xs font-bold uppercase transition">All Events</button>`;
+            container.innerHTML = `
+                <button onclick="filterByCat('all', this)" class="category-pill active border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase transition">
+                    All Sports
+                </button>`;
 
-            categories.forEach(cat => {
+            allCategories.forEach(cat => {
                 const btn = document.createElement('button');
-                btn.className = "bg-white/5 border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase flex items-center gap-2 hover:border-sky-500 transition";
+                btn.className = "category-pill bg-white/5 border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase flex items-center gap-2 hover:border-sky-500 transition";
+                btn.onclick = () => filterByCat(cat.id, btn, cat.name);
                 btn.innerHTML = `
                     <img src="${cat.imagePath}" class="w-4 h-4 object-contain" alt="">
                     ${cat.name}
@@ -104,14 +106,35 @@
             });
         }
 
-        function renderMatches(parties, categories) {
+        function filterByCat(catId, btnElement, catName = 'All Live Matches') {
+            // Update UI Active State
+            document.querySelectorAll('.category-pill').forEach(el => el.classList.remove('active', 'bg-sky-500', 'text-black'));
+            btnElement.classList.add('active', 'bg-sky-500', 'text-black');
+            
+            document.getElementById('view-title').innerText = catName;
+
+            // Filter logic
+            if (catId === 'all') {
+                renderMatches(allParties);
+                updateCount(allParties.length);
+            } else {
+                const filtered = allParties.filter(match => match.categoryId === catId);
+                renderMatches(filtered);
+                updateCount(filtered.length);
+            }
+        }
+
+        function renderMatches(parties) {
             const grid = document.getElementById('parties-grid');
             grid.innerHTML = '';
 
+            if (parties.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-40">No live matches found for this category.</div>`;
+                return;
+            }
+
             parties.forEach(match => {
-                const category = categories.find(c => c.id === match.categoryId);
-                
-                // Clean the video URL (remove the <English or similar tags)
+                const category = allCategories.find(c => c.id === match.categoryId);
                 const cleanUrl = match.videoUrl.split('<')[0].trim();
 
                 const card = document.createElement('div');
@@ -121,14 +144,14 @@
                     <div class="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500">
                         <span class="flex items-center gap-1">
                             <img src="${category?.imagePath || ''}" class="w-3 h-3 grayscale"> 
-                            ${category?.name || 'Live'}
+                            ${category?.name || 'Sports'}
                         </span>
-                        <span class="text-emerald-400">Live Now</span>
+                        <span class="text-emerald-400">Live</span>
                     </div>
 
                     <div class="flex items-center justify-between px-2">
                         <img src="${match.logoTeam1}" class="w-14 h-14 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
-                        <div class="text-xs font-black text-slate-700 italic">VS</div>
+                        <div class="text-[10px] font-black text-slate-700 italic">VS</div>
                         <img src="${match.logoTeam2}" class="w-14 h-14 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
                     </div>
 
@@ -138,28 +161,31 @@
                     </div>
 
                     <button onclick="openPlayer('${cleanUrl}')" 
-                       class="mt-auto bg-sky-600 hover:bg-sky-400 text-white hover:text-black py-3 rounded-xl font-black uppercase text-[11px] tracking-wider transition-all duration-300">
-                        WATCH LIVE
+                       class="mt-auto bg-white/5 hover:bg-sky-500 text-white hover:text-black py-3 rounded-xl font-black uppercase text-[11px] tracking-wider transition-all border border-white/10 hover:border-transparent">
+                        WATCH STREAM
                     </button>
                 `;
                 grid.appendChild(card);
             });
         }
 
-        // Modal Functions
+        function updateCount(num) {
+            document.getElementById('match-count').innerText = `${num} Events Online`;
+        }
+
         function openPlayer(url) {
             const modal = document.getElementById('video-modal');
             const iframe = document.getElementById('player-frame');
             iframe.src = url;
             modal.classList.remove('hidden');
             modal.classList.add('flex');
-            document.body.style.overflow = 'hidden'; // Prevent scrolling
+            document.body.style.overflow = 'hidden';
         }
 
         function closePlayer() {
             const modal = document.getElementById('video-modal');
             const iframe = document.getElementById('player-frame');
-            iframe.src = ""; // Stop the stream audio
+            iframe.src = ""; 
             modal.classList.remove('flex');
             modal.classList.add('hidden');
             document.body.style.overflow = 'auto';
