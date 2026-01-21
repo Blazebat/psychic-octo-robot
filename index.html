@@ -3,178 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Streamcenter | Live Sports by RageTV</title>
+    <title>Streamcenter | Powered by Pixelsport</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Oxanium', sans-serif; background-color: #0b0f1a; color: #ffffff; overflow-x: hidden; }
-        .sport-card { background: linear-gradient(145deg, #161b2c, #0b0f1a); transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.1); }
-        .card-live { border: 1px solid #0ea5e9 !important; box-shadow: 0 0 20px rgba(14, 165, 233, 0.15); }
-        .card-scheduled { opacity: 0.5; }
-        .live-dot { width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-right: 5px; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .active-filter { background-color: #38bdf8 !important; color: #000 !important; }
+        body { font-family: 'Oxanium', sans-serif; background-color: #05070a; color: #ffffff; }
+        .match-card { background: linear-gradient(180deg, #11141d 0%, #05070a 100%); border: 1px solid rgba(255,255,255,0.05); transition: 0.3s; }
+        .match-card:hover { border-color: #fdb927; transform: translateY(-3px); }
+        .live-tag { animation: pulse 2s infinite; background: #ef4444; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .video-container { background: #000; position: relative; width: 100%; aspect-ratio: 16/9; }
+        video { width: 100%; height: 100%; }
     </style>
 </head>
-<body class="pb-20">
+<body class="pb-10">
 
-    <nav class="bg-black/90 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center gap-4">
-                <img src="https://streamcenter.pro/logo.png" alt="Logo" class="h-10">
-                <div class="leading-tight">
-                    <h1 class="font-bold text-lg uppercase tracking-wider">Streamcenter</h1>
-                    <p class="text-[10px] text-sky-400 font-bold uppercase tracking-[0.2em]">By RageTV</p>
-                </div>
-            </div>
+    <nav class="bg-black/80 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
             <div class="flex items-center gap-3">
-                <span id="clock" class="text-[10px] font-mono text-slate-400 hidden md:block"></span>
-                <button onclick="init()" class="p-2 bg-white/5 rounded-full hover:bg-sky-500 hover:text-black transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                </button>
+                <div class="bg-yellow-500 text-black font-black px-2 py-1 rounded text-sm">PIXEL</div>
+                <h1 class="font-bold tracking-tighter text-xl">STREAMCENTER</h1>
             </div>
+            <div id="current-time" class="text-[10px] text-slate-400 font-mono"></div>
         </div>
     </nav>
 
-    <div class="bg-slate-900 border-b border-white/5 overflow-x-auto no-scrollbar">
-        <div id="category-list" class="container mx-auto px-4 py-4 flex gap-4"></div>
-    </div>
-
-    <main class="container mx-auto px-4 py-8">
-        <div id="parties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <div class="col-span-full text-center py-20 text-slate-500 uppercase tracking-widest text-xs">
-                Establishing Secure Connection...
+    <main class="container mx-auto px-4 mt-8">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-bold uppercase italic tracking-widest text-yellow-500">Live Satellite Events</h2>
+            <div id="status-dot" class="flex items-center gap-2 text-[10px] font-bold text-emerald-500">
+                <span class="w-2 h-2 bg-emerald-500 rounded-full"></span> SYSTEM ACTIVE
             </div>
         </div>
+
+        <div id="events-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
     </main>
 
-    <div id="video-modal" class="fixed inset-0 z-[100] hidden bg-black/98 items-center justify-center p-4">
-        <div class="relative w-full max-w-5xl aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-white/10">
-            <button onclick="closePlayer()" class="absolute top-4 right-4 z-[110] bg-white/10 hover:bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all border border-white/20">✕</button>
-            <iframe id="player-frame" src="" class="w-full h-full" frameborder="0" allowfullscreen sandbox="allow-forms allow-scripts allow-pointer-lock allow-same-origin allow-top-navigation"></iframe>
+    <div id="player-modal" class="fixed inset-0 z-[100] hidden bg-black/95 flex-col items-center justify-center p-4">
+        <div class="w-full max-w-4xl relative">
+            <button onclick="closePlayer()" class="absolute -top-12 right-0 text-white font-bold flex items-center gap-2 hover:text-yellow-500 transition">
+                CLOSE PLAYER <span class="text-2xl">✕</span>
+            </button>
+            
+            <div class="video-container rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+                <video id="video-player" controls playsinline></video>
+            </div>
+            
+            <div id="player-meta" class="mt-4 flex justify-between items-center">
+                <h3 id="playing-title" class="font-bold text-lg text-yellow-500"></h3>
+                <span class="text-[10px] bg-white/10 px-3 py-1 rounded text-slate-400">HLS STREAM</span>
+            </div>
         </div>
     </div>
 
     <script>
-        const API_PARTIES = 'https://backend.streamcenter.live/api/Parties?pageNumber=1&pageSize=50';
-        const API_CATEGORIES = 'https://backend.streamcenter.live/api/Categories';
-        const API_PPV = 'https://api.ppv.to/api/streams';
+        const API_URL = 'https://pixelsport.tv/backend/liveTV/events';
+        const REFERRER = 'https://pixelsport.tv/';
 
-        let allParties = [];
-        let allCategories = [];
-        let currentFilter = 'all';
-
-        // Update Clock
-        setInterval(() => {
-            const now = new Date();
-            document.getElementById('clock').innerText = now.toLocaleTimeString();
-        }, 1000);
-
-        async function init() {
-            const grid = document.getElementById('parties-grid');
+        async function fetchEvents() {
             try {
-                const [catRes, partyRes] = await Promise.all([
-                    fetch(API_CATEGORIES),
-                    fetch(API_PARTIES)
-                ]);
-                
-                allCategories = await catRes.json();
-                allParties = await partyRes.json();
-                
-                renderCategories();
-                renderMatches(allParties);
-            } catch (err) { 
-                console.error("Connection Error:", err);
-                grid.innerHTML = `
-                    <div class="col-span-full text-center py-20">
-                        <div class="text-red-500 font-bold uppercase mb-4 text-xl">Signal Lost</div>
-                        <p class="text-slate-500 text-sm mb-6">Failed to sync with the backend server.</p>
-                        <button onclick="init()" class="bg-sky-600 px-6 py-2 rounded-full font-bold uppercase text-xs">Try Reconnect</button>
-                    </div>`;
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                renderEvents(data.events);
+            } catch (err) {
+                console.error("API Error:", err);
             }
         }
 
-        function renderCategories() {
-            const container = document.getElementById('category-list');
-            container.innerHTML = `<button onclick="filter('all')" class="cat-btn active-filter border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase transition">All Sports</button>`;
-            allCategories.forEach(cat => {
-                container.innerHTML += `<button onclick="filter(${cat.id})" class="cat-btn bg-white/5 border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase hover:border-sky-500 transition">${cat.name}</button>`;
-            });
-        }
-
-        function filter(id) {
-            currentFilter = id;
-            const filtered = id === 'all' ? allParties : allParties.filter(m => m.categoryId === id);
-            renderMatches(filtered);
-            
-            // UI Toggle
-            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active-filter'));
-            event.target.classList.add('active-filter');
-        }
-
-        function renderMatches(parties) {
-            const grid = document.getElementById('parties-grid');
+        function renderEvents(events) {
+            const grid = document.getElementById('events-grid');
             grid.innerHTML = '';
             const now = new Date();
 
-            parties.forEach(match => {
-                // ADJUSTING TIME: The API is 1 day ahead, so we subtract 24 hours.
-                const startTime = new Date(new Date(match.beginPartie).getTime() - 86400000);
-                const endTime = new Date(new Date(match.endPartie).getTime() - 86400000);
+            events.forEach(event => {
+                const eventDate = new Date(event.date);
+                const isToday = eventDate.toDateString() === now.toDateString();
                 
-                // IS LIVE LOGIC: Check if current local time is within the start/end window
-                const isLive = now >= startTime && now <= endTime;
-
-                const cleanUrl = match.videoUrl.split('<')[0].trim();
                 const card = document.createElement('div');
-                card.className = `sport-card rounded-2xl p-5 flex flex-col gap-4 ${isLive ? 'card-live' : 'card-scheduled'}`;
+                card.className = "match-card rounded-2xl p-6 flex flex-col gap-4";
                 
                 card.innerHTML = `
-                    <div class="flex justify-between items-center text-[10px] font-bold uppercase">
-                        <span class="text-slate-500">${match.gameName || 'Broadcast'}</span>
-                        ${isLive ? '<span class="text-sky-400 flex items-center"><span class="live-dot"></span>ON AIR</span>' : '<span class="text-slate-600">OFFLINE</span>'}
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">${event.channel.TVCategory.name}</span>
+                        ${isToday ? '<span class="live-tag text-[9px] px-2 py-0.5 rounded font-black">LIVE</span>' : ''}
                     </div>
 
-                    <div class="flex items-center justify-around py-4">
-                        <img src="${match.logoTeam1}" class="w-14 h-14 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
-                        <div class="text-[10px] font-black text-slate-800 italic">VS</div>
-                        <img src="${match.logoTeam2}" class="w-14 h-14 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
+                    <div class="flex items-center justify-between py-2">
+                        <div class="flex flex-col items-center gap-2 w-1/3 text-center">
+                            <img src="${event.competitors1_logo}" class="w-16 h-16 object-contain">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase leading-tight">${event.competitors1_name}</span>
+                        </div>
+                        
+                        <div class="flex flex-col items-center">
+                            <span class="text-xs font-black text-slate-700 italic">VS</span>
+                        </div>
+
+                        <div class="flex flex-col items-center gap-2 w-1/3 text-center">
+                            <img src="${event.competitors2_logo}" class="w-16 h-16 object-contain">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase leading-tight">${event.competitors2_name}</span>
+                        </div>
                     </div>
 
                     <div class="text-center">
-                        <h3 class="font-bold text-sm text-sky-100 line-clamp-1 uppercase tracking-tighter">${match.name}</h3>
-                        <p class="text-[10px] text-slate-500 mt-2">
-                            ${isLive ? 'LIVE FROM PHILIPPINES' : 'STARTS: ' + startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true})}
-                        </p>
+                        <h3 class="font-bold text-sm leading-tight">${event.match_name}</h3>
+                        <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-tighter">${event.location}</p>
                     </div>
 
-                    ${isLive 
-                        ? `<button onclick="openPlayer('${cleanUrl}')" class="bg-sky-600 hover:bg-sky-400 text-white hover:text-black py-3 rounded-xl font-black uppercase text-[11px] transition-all">ENTER STREAM</button>`
-                        : `<button disabled class="bg-white/5 text-slate-600 py-3 rounded-xl font-black uppercase text-[11px] cursor-not-allowed border border-white/5 uppercase">Coming Soon</button>`
-                    }
+                    <div class="grid grid-cols-2 gap-3 mt-2">
+                        <button onclick="playStream('${event.channel.server1URL}', '${event.match_name}')" 
+                            class="bg-yellow-500 hover:bg-yellow-400 text-black py-2.5 rounded-lg font-black text-[10px] uppercase transition">
+                            Server 1
+                        </button>
+                        <button onclick="playStream('${event.channel.server2URL}', '${event.match_name}')" 
+                            class="bg-white/10 hover:bg-white/20 text-white py-2.5 rounded-lg font-black text-[10px] uppercase transition">
+                            Server 2
+                        </button>
+                    </div>
                 `;
                 grid.appendChild(card);
             });
         }
 
-        function openPlayer(url) {
-            document.getElementById('player-frame').src = url;
-            document.getElementById('video-modal').classList.remove('hidden');
-            document.getElementById('video-modal').classList.add('flex');
+        function playStream(url, title) {
+            if (url === "null") {
+                alert("Server currently offline.");
+                return;
+            }
+
+            const video = document.getElementById('video-player');
+            const modal = document.getElementById('player-modal');
+            document.getElementById('playing-title').innerText = title;
+
+            modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
+
+            if (Hls.isSupported()) {
+                const hls = new Hls({
+                    xhrSetup: function(xhr, url) {
+                        // Note: Browsers usually prevent manual header overrides like 'Referer' 
+                        // but setting the meta tag or playing through a proxy is standard for Pixelsport.
+                    }
+                });
+                hls.loadSource(url);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    video.play();
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = url;
+                video.addEventListener('loadedmetadata', function() {
+                    video.play();
+                });
+            }
         }
 
         function closePlayer() {
-            document.getElementById('player-frame').src = "";
-            document.getElementById('video-modal').classList.add('hidden');
-            document.getElementById('video-modal').classList.remove('flex');
+            const video = document.getElementById('video-player');
+            video.pause();
+            video.src = "";
+            document.getElementById('player-modal').classList.add('hidden');
             document.body.style.overflow = 'auto';
         }
 
-        init();
+        // Time Clock
+        setInterval(() => {
+            document.getElementById('current-time').innerText = new Date().toLocaleString();
+        }, 1000);
+
+        fetchEvents();
     </script>
 </body>
 </html>
