@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Oxanium', sans-serif; background-color: #0b0f1a; color: #ffffff; overflow-x: hidden; }
-        .sport-card { background: linear-gradient(145deg, #161b2c, #0b0f1a); transition: all 0.3s ease; }
+        .sport-card { background: linear-gradient(145deg, #161b2c, #0b0f1a); transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.1); }
         .sport-card:hover { transform: translateY(-5px); border-color: #38bdf8; box-shadow: 0 10px 30px -10px rgba(56, 189, 248, 0.3); }
         .live-dot { width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-right: 5px; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
@@ -28,24 +28,21 @@
                 </div>
             </div>
             <div id="match-count" class="text-[10px] bg-white/10 px-3 py-1 rounded-full border border-white/20 text-slate-400 uppercase font-bold">
-                Loading...
+                Syncing...
             </div>
         </div>
     </nav>
 
     <div class="bg-slate-900/50 border-b border-white/5 overflow-x-auto no-scrollbar">
-        <div id="category-list" class="container mx-auto px-4 py-4 flex gap-4 whitespace-nowrap">
-            </div>
+        <div id="category-list" class="container mx-auto px-4 py-4 flex gap-4 whitespace-nowrap"></div>
     </div>
 
     <main class="container mx-auto px-4 py-8">
         <div class="flex items-center gap-2 mb-8">
-            <span class="live-dot"></span>
-            <h2 id="view-title" class="text-xl font-extrabold uppercase italic tracking-tight">All Live Matches</h2>
+            <h2 id="view-title" class="text-xl font-extrabold uppercase italic tracking-tight text-sky-400">All Matches</h2>
         </div>
 
-        <div id="parties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            </div>
+        <div id="parties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
     </main>
 
     <div id="video-modal" class="fixed inset-0 z-[100] hidden bg-black/95 items-center justify-center p-4">
@@ -62,7 +59,7 @@
     </div>
 
     <script>
-        const API_PARTIES = 'https://backend.streamcenter.live/api/Parties?';
+        const API_PARTIES = 'https://backend.streamcenter.live/api/Parties?pageNumber=1&pageSize=50';
         const API_CATEGORIES = 'https://backend.streamcenter.live/api/Categories';
 
         let allParties = [];
@@ -98,79 +95,76 @@
                 const btn = document.createElement('button');
                 btn.className = "category-pill bg-white/5 border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase flex items-center gap-2 hover:border-sky-500 transition";
                 btn.onclick = () => filterByCat(cat.id, btn, cat.name);
-                btn.innerHTML = `
-                    <img src="${cat.imagePath}" class="w-4 h-4 object-contain" alt="">
-                    ${cat.name}
-                `;
+                btn.innerHTML = `<img src="${cat.imagePath}" class="w-4 h-4 object-contain" alt=""> ${cat.name}`;
                 container.appendChild(btn);
             });
         }
 
-        function filterByCat(catId, btnElement, catName = 'All Live Matches') {
-            // Update UI Active State
+        function filterByCat(catId, btnElement, catName = 'All Matches') {
             document.querySelectorAll('.category-pill').forEach(el => el.classList.remove('active', 'bg-sky-500', 'text-black'));
             btnElement.classList.add('active', 'bg-sky-500', 'text-black');
-            
             document.getElementById('view-title').innerText = catName;
 
-            // Filter logic
-            if (catId === 'all') {
-                renderMatches(allParties);
-                updateCount(allParties.length);
-            } else {
-                const filtered = allParties.filter(match => match.categoryId === catId);
-                renderMatches(filtered);
-                updateCount(filtered.length);
-            }
+            const filtered = catId === 'all' ? allParties : allParties.filter(m => m.categoryId === catId);
+            renderMatches(filtered);
+            updateCount(filtered.length);
         }
 
         function renderMatches(parties) {
             const grid = document.getElementById('parties-grid');
             grid.innerHTML = '';
 
-            if (parties.length === 0) {
-                grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-40">No live matches found for this category.</div>`;
-                return;
-            }
+            const now = new Date();
 
             parties.forEach(match => {
                 const category = allCategories.find(c => c.id === match.categoryId);
                 const cleanUrl = match.videoUrl.split('<')[0].trim();
-
-                const card = document.createElement('div');
-                card.className = "sport-card rounded-2xl border border-white/10 p-5 flex flex-col gap-4";
                 
+                // Time Check Logic
+                const startTime = new Date(match.beginPartie);
+                const endTime = new Date(match.endPartie);
+                const isLive = now >= startTime && now <= endTime;
+                
+                const card = document.createElement('div');
+                card.className = "sport-card rounded-2xl p-5 flex flex-col gap-4";
+                
+                // Content based on Live Status
+                const statusTag = isLive 
+                    ? `<span class="text-emerald-400 flex items-center"><span class="live-dot"></span>LIVE</span>`
+                    : `<span class="text-slate-500 italic">Starts at ${startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>`;
+
+                const actionButton = isLive
+                    ? `<button onclick="openPlayer('${cleanUrl}')" class="mt-auto bg-white/5 hover:bg-sky-500 text-white hover:text-black py-3 rounded-xl font-black uppercase text-[11px] tracking-wider transition-all border border-white/10 hover:border-transparent">WATCH STREAM</button>`
+                    : `<button disabled class="mt-auto bg-white/5 opacity-50 text-slate-500 py-3 rounded-xl font-black uppercase text-[11px] tracking-wider border border-white/10 cursor-not-allowed text-center">NOT STARTED</button>`;
+
                 card.innerHTML = `
                     <div class="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500">
                         <span class="flex items-center gap-1">
                             <img src="${category?.imagePath || ''}" class="w-3 h-3 grayscale"> 
                             ${category?.name || 'Sports'}
                         </span>
-                        <span class="text-emerald-400">Live</span>
+                        ${statusTag}
                     </div>
 
                     <div class="flex items-center justify-between px-2">
                         <img src="${match.logoTeam1}" class="w-14 h-14 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
-                        <div class="text-[10px] font-black text-slate-700 italic">VS</div>
+                        <div class="text-[10px] font-black text-slate-700 italic px-2">VS</div>
                         <img src="${match.logoTeam2}" class="w-14 h-14 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
                     </div>
 
                     <div class="text-center">
-                        <h3 class="font-bold text-sm leading-tight mb-1 text-sky-100">${match.name}</h3>
+                        <h3 class="font-bold text-sm leading-tight mb-1 text-sky-100 line-clamp-1">${match.name}</h3>
                         <p class="text-[10px] text-slate-500 line-clamp-1">${match.description}</p>
                     </div>
 
-                    <button onclick="openPlayer('${cleanUrl}')" 
-                       class="mt-auto bg-white/5 hover:bg-sky-500 text-white hover:text-black py-3 rounded-xl font-black uppercase text-[11px] tracking-wider transition-all border border-white/10 hover:border-transparent">
-                        WATCH STREAM
-                    </button>
+                    ${actionButton}
                 `;
                 grid.appendChild(card);
             });
         }
 
         function updateCount(num) {
-            document.getElementById('match-count').innerText = `${num} Events Online`;
+            document.getElementById('match-count').innerText = `${num} Matches Found`;
         }
 
         function openPlayer(url) {
