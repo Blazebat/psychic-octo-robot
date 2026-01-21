@@ -3,121 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Streamcenter | Powered by Pixelsport</title>
+    <meta name="referrer" content="no-referrer">
+    <title>Streamcenter | Pixelsport Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Oxanium', sans-serif; background-color: #05070a; color: #ffffff; }
-        .match-card { background: linear-gradient(180deg, #11141d 0%, #05070a 100%); border: 1px solid rgba(255,255,255,0.05); transition: 0.3s; }
-        .match-card:hover { border-color: #fdb927; transform: translateY(-3px); }
-        .live-tag { animation: pulse 2s infinite; background: #ef4444; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        .video-container { background: #000; position: relative; width: 100%; aspect-ratio: 16/9; }
-        video { width: 100%; height: 100%; }
+        .match-card { background: linear-gradient(180deg, #11141d 0%, #05070a 100%); border: 1px solid rgba(255,255,255,0.05); }
+        .live-tag { background: #ef4444; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .video-container { background: #000; width: 100%; aspect-ratio: 16/9; }
     </style>
 </head>
 <body class="pb-10">
 
-    <nav class="bg-black/80 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
+    <nav class="bg-black/90 border-b border-white/10 sticky top-0 z-50">
         <div class="container mx-auto px-4 py-4 flex justify-between items-center">
             <div class="flex items-center gap-3">
-                <div class="bg-yellow-500 text-black font-black px-2 py-1 rounded text-sm">PIXEL</div>
-                <h1 class="font-bold tracking-tighter text-xl">STREAMCENTER</h1>
+                <div class="bg-blue-600 text-white font-black px-2 py-0.5 rounded text-xs">LIVE</div>
+                <h1 class="font-bold tracking-tighter text-xl text-blue-400">STREAMCENTER</h1>
             </div>
-            <div id="current-time" class="text-[10px] text-slate-400 font-mono"></div>
+            <div id="status" class="text-[10px] font-bold text-slate-500 uppercase">Checking Feeds...</div>
         </div>
     </nav>
 
     <main class="container mx-auto px-4 mt-8">
-        <div class="flex items-center justify-between mb-6">
-            <h2 class="text-lg font-bold uppercase italic tracking-widest text-yellow-500">Live Satellite Events</h2>
-            <div id="status-dot" class="flex items-center gap-2 text-[10px] font-bold text-emerald-500">
-                <span class="w-2 h-2 bg-emerald-500 rounded-full"></span> SYSTEM ACTIVE
+        <div id="events-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="col-span-full text-center py-20">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-blue-500 mb-4"></div>
+                <p class="text-slate-500 text-xs uppercase tracking-widest">Fetching Pixelsport Satellite Data...</p>
             </div>
         </div>
-
-        <div id="events-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            </div>
     </main>
 
     <div id="player-modal" class="fixed inset-0 z-[100] hidden bg-black/95 flex-col items-center justify-center p-4">
-        <div class="w-full max-w-4xl relative">
-            <button onclick="closePlayer()" class="absolute -top-12 right-0 text-white font-bold flex items-center gap-2 hover:text-yellow-500 transition">
-                CLOSE PLAYER <span class="text-2xl">✕</span>
-            </button>
-            
-            <div class="video-container rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+        <div class="w-full max-w-4xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="playing-title" class="font-bold text-blue-400"></h3>
+                <button onclick="closePlayer()" class="text-white hover:text-red-500 text-xl font-bold">✕</button>
+            </div>
+            <div class="video-container rounded-lg overflow-hidden border border-white/10 shadow-2xl">
                 <video id="video-player" controls playsinline></video>
             </div>
-            
-            <div id="player-meta" class="mt-4 flex justify-between items-center">
-                <h3 id="playing-title" class="font-bold text-lg text-yellow-500"></h3>
-                <span class="text-[10px] bg-white/10 px-3 py-1 rounded text-slate-400">HLS STREAM</span>
+            <div class="mt-4 flex gap-4">
+                <div class="text-[10px] text-slate-500 bg-white/5 px-3 py-1 rounded">Origin: pixelsport.tv</div>
+                <div class="text-[10px] text-slate-500 bg-white/5 px-3 py-1 rounded">Format: HLS / M3U8</div>
             </div>
         </div>
     </div>
 
     <script>
+        // Using a CORS proxy to bypass security blocks during testing
+        const PROXY = "https://cors-anywhere.herokuapp.com/";
         const API_URL = 'https://pixelsport.tv/backend/liveTV/events';
-        const REFERRER = 'https://pixelsport.tv/';
 
         async function fetchEvents() {
+            const grid = document.getElementById('events-grid');
+            const status = document.getElementById('status');
+
             try {
-                const response = await fetch(API_URL);
+                // Try fetching directly first, if it fails, use the proxy
+                let response;
+                try {
+                    response = await fetch(API_URL);
+                } catch (e) {
+                    response = await fetch(PROXY + API_URL);
+                }
+
                 const data = await response.json();
+                status.innerText = "Data Synced Successfully";
                 renderEvents(data.events);
             } catch (err) {
                 console.error("API Error:", err);
+                grid.innerHTML = `
+                    <div class="col-span-full text-center py-20">
+                        <p class="text-red-500 font-bold">CORS BLOCK DETECTED</p>
+                        <p class="text-slate-500 text-xs mt-2">Please visit <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank" class="text-blue-400 underline">this link</a> and click "Request temporary access" to enable the feed.</p>
+                    </div>`;
             }
         }
 
         function renderEvents(events) {
             const grid = document.getElementById('events-grid');
             grid.innerHTML = '';
-            const now = new Date();
+
+            if (!events || events.length === 0) {
+                grid.innerHTML = `<p class="col-span-full text-center text-slate-500">No events currently scheduled.</p>`;
+                return;
+            }
 
             events.forEach(event => {
-                const eventDate = new Date(event.date);
-                const isToday = eventDate.toDateString() === now.toDateString();
-                
                 const card = document.createElement('div');
-                card.className = "match-card rounded-2xl p-6 flex flex-col gap-4";
+                card.className = "match-card rounded-xl p-5 flex flex-col gap-4";
                 
                 card.innerHTML = `
                     <div class="flex justify-between items-center">
-                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">${event.channel.TVCategory.name}</span>
-                        ${isToday ? '<span class="live-tag text-[9px] px-2 py-0.5 rounded font-black">LIVE</span>' : ''}
+                        <span class="text-[10px] font-bold text-slate-500 uppercase">${event.channel.TVCategory?.name || 'Live'}</span>
+                        <span class="live-tag text-[9px] px-2 py-0.5 rounded font-black text-white">LIVE</span>
                     </div>
 
                     <div class="flex items-center justify-between py-2">
-                        <div class="flex flex-col items-center gap-2 w-1/3 text-center">
-                            <img src="${event.competitors1_logo}" class="w-16 h-16 object-contain">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase leading-tight">${event.competitors1_name}</span>
+                        <div class="text-center w-1/3">
+                            <img src="${event.competitors1_logo}" class="w-12 h-12 mx-auto object-contain mb-2">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">${event.competitors1_name}</span>
                         </div>
-                        
-                        <div class="flex flex-col items-center">
-                            <span class="text-xs font-black text-slate-700 italic">VS</span>
-                        </div>
-
-                        <div class="flex flex-col items-center gap-2 w-1/3 text-center">
-                            <img src="${event.competitors2_logo}" class="w-16 h-16 object-contain">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase leading-tight">${event.competitors2_name}</span>
+                        <div class="text-xs font-black text-slate-800 italic uppercase">vs</div>
+                        <div class="text-center w-1/3">
+                            <img src="${event.competitors2_logo}" class="w-12 h-12 mx-auto object-contain mb-2">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">${event.competitors2_name}</span>
                         </div>
                     </div>
 
                     <div class="text-center">
-                        <h3 class="font-bold text-sm leading-tight">${event.match_name}</h3>
-                        <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-tighter">${event.location}</p>
+                        <h3 class="font-bold text-sm text-white line-clamp-1">${event.match_name}</h3>
+                        <p class="text-[9px] text-slate-500 mt-1 uppercase">${event.location || 'Stadium'}</p>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3 mt-2">
+                    <div class="grid grid-cols-2 gap-2 mt-2">
                         <button onclick="playStream('${event.channel.server1URL}', '${event.match_name}')" 
-                            class="bg-yellow-500 hover:bg-yellow-400 text-black py-2.5 rounded-lg font-black text-[10px] uppercase transition">
+                            class="bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-bold text-[10px] uppercase transition">
                             Server 1
                         </button>
                         <button onclick="playStream('${event.channel.server2URL}', '${event.match_name}')" 
-                            class="bg-white/10 hover:bg-white/20 text-white py-2.5 rounded-lg font-black text-[10px] uppercase transition">
+                            class="bg-white/5 hover:bg-white/10 text-white py-2 rounded-lg font-bold text-[10px] uppercase transition">
                             Server 2
                         </button>
                     </div>
@@ -127,8 +136,8 @@
         }
 
         function playStream(url, title) {
-            if (url === "null") {
-                alert("Server currently offline.");
+            if (!url || url === "null") {
+                alert("This server is currently offline.");
                 return;
             }
 
@@ -137,25 +146,17 @@
             document.getElementById('playing-title').innerText = title;
 
             modal.classList.remove('hidden');
+            modal.classList.add('flex');
             document.body.style.overflow = 'hidden';
 
             if (Hls.isSupported()) {
-                const hls = new Hls({
-                    xhrSetup: function(xhr, url) {
-                        // Note: Browsers usually prevent manual header overrides like 'Referer' 
-                        // but setting the meta tag or playing through a proxy is standard for Pixelsport.
-                    }
-                });
+                const hls = new Hls();
                 hls.loadSource(url);
                 hls.attachMedia(video);
-                hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                    video.play();
-                });
+                hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = url;
-                video.addEventListener('loadedmetadata', function() {
-                    video.play();
-                });
+                video.addEventListener('loadedmetadata', () => video.play());
             }
         }
 
@@ -166,11 +167,6 @@
             document.getElementById('player-modal').classList.add('hidden');
             document.body.style.overflow = 'auto';
         }
-
-        // Time Clock
-        setInterval(() => {
-            document.getElementById('current-time').innerText = new Date().toLocaleString();
-        }, 1000);
 
         fetchEvents();
     </script>
