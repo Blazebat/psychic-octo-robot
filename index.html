@@ -10,10 +10,11 @@
         body { font-family: 'Oxanium', sans-serif; background-color: #0b0f1a; color: #ffffff; overflow-x: hidden; }
         .sport-card { background: linear-gradient(145deg, #161b2c, #0b0f1a); transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.1); }
         .card-live { border: 1px solid #10b981 !important; box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
-        .card-scheduled { opacity: 0.7; }
+        .card-scheduled { opacity: 0.6; }
         .live-dot { width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-right: 5px; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        .active-filter { background-color: #38bdf8 !important; color: #000 !important; border-color: #38bdf8 !important; }
     </style>
 </head>
 <body class="pb-20">
@@ -27,9 +28,9 @@
                     <p class="text-[10px] text-sky-400 font-bold uppercase tracking-[0.2em]">By RageTV</p>
                 </div>
             </div>
-            <div id="match-count" class="text-[10px] bg-white/10 px-3 py-1 rounded-full border border-white/20 text-slate-400 uppercase font-bold tracking-widest">
-                UPDATING...
-            </div>
+            <button onclick="toggleLiveOnly()" id="live-toggle" class="text-[10px] bg-white/5 border border-white/20 px-4 py-2 rounded-full font-bold uppercase hover:bg-red-600 transition-all">
+                Show Live Only
+            </button>
         </div>
     </nav>
 
@@ -38,12 +39,11 @@
     </div>
 
     <main class="container mx-auto px-4 py-8">
-        <div id="parties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            </div>
+        <div id="parties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
     </main>
 
     <div id="video-modal" class="fixed inset-0 z-[100] hidden bg-black/98 items-center justify-center p-4">
-        <div class="relative w-full max-w-5xl aspect-video bg-black rounded-xl overflow-hidden shadow-2xl">
+        <div class="relative w-full max-w-5xl aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-white/10">
             <button onclick="closePlayer()" class="absolute top-4 right-4 z-[110] bg-white/10 hover:bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all">✕</button>
             <iframe id="player-frame" src="" class="w-full h-full" frameborder="0" allowfullscreen sandbox="allow-forms allow-scripts allow-pointer-lock allow-same-origin allow-top-navigation"></iframe>
         </div>
@@ -55,66 +55,81 @@
 
         let allParties = [];
         let allCategories = [];
+        let liveOnlyMode = false;
+        let activeCategoryId = 'all';
 
         async function init() {
             try {
                 const [catRes, partyRes] = await Promise.all([fetch(API_CATEGORIES), fetch(API_PARTIES)]);
                 allCategories = await catRes.json();
                 allParties = await partyRes.json();
-                
                 renderCategories();
-                renderMatches(allParties);
+                refreshUI();
             } catch (err) { console.error("Load Error:", err); }
         }
 
         function renderCategories() {
             const container = document.getElementById('category-list');
-            container.innerHTML = `<button onclick="renderMatches(allParties)" class="bg-sky-500 text-black px-5 py-2 rounded-full text-xs font-bold uppercase">All Sports</button>`;
+            container.innerHTML = `<button onclick="setCategory('all')" id="cat-all" class="category-btn active-filter border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase transition">All Sports</button>`;
             allCategories.forEach(cat => {
                 const btn = document.createElement('button');
-                btn.className = "bg-white/5 border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase hover:border-sky-500 transition";
-                btn.onclick = () => {
-                    const filtered = allParties.filter(m => m.categoryId === cat.id);
-                    renderMatches(filtered);
-                };
+                btn.id = `cat-${cat.id}`;
+                btn.className = "category-btn bg-white/5 border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase hover:border-sky-500 transition";
+                btn.onclick = () => setCategory(cat.id);
                 btn.innerHTML = cat.name;
                 container.appendChild(btn);
             });
         }
 
-        function renderMatches(parties) {
+        function setCategory(id) {
+            activeCategoryId = id;
+            document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active-filter'));
+            document.getElementById(`cat-${id}`).classList.add('active-filter');
+            refreshUI();
+        }
+
+        function toggleLiveOnly() {
+            liveOnlyMode = !liveOnlyMode;
+            const btn = document.getElementById('live-toggle');
+            btn.innerText = liveOnlyMode ? "Showing Live Only" : "Show Live Only";
+            btn.classList.toggle('bg-red-600', liveOnlyMode);
+            refreshUI();
+        }
+
+        function refreshUI() {
             const grid = document.getElementById('parties-grid');
             grid.innerHTML = '';
             const now = new Date();
 
-            parties.forEach(match => {
-                const startTime = new Date(match.beginPartie);
-                const endTime = new Date(match.endPartie);
+            let filtered = activeCategoryId === 'all' ? allParties : allParties.filter(m => m.categoryId === activeCategoryId);
+
+            filtered.forEach(match => {
+                // TIME ADJUSTMENT: Subtract 24 hours (86400000 ms) because API is one day ahead
+                const startTime = new Date(new Date(match.beginPartie).getTime() - 86400000);
+                const endTime = new Date(new Date(match.endPartie).getTime() - 86400000);
                 const isLive = now >= startTime && now <= endTime;
-                
+
+                if (liveOnlyMode && !isLive) return;
+
                 const cleanUrl = match.videoUrl.split('<')[0].trim();
                 const card = document.createElement('div');
                 card.className = `sport-card rounded-2xl p-5 flex flex-col gap-4 ${isLive ? 'card-live' : 'card-scheduled'}`;
                 
                 card.innerHTML = `
                     <div class="flex justify-between items-center text-[10px] font-bold uppercase">
-                        <span class="text-slate-500">${match.gameName || 'Tournament'}</span>
+                        <span class="text-slate-500 line-clamp-1">${match.gameName || 'Tournament'}</span>
                         ${isLive ? '<span class="text-emerald-400 flex items-center"><span class="live-dot"></span>LIVE</span>' : '<span class="text-slate-600">SCHEDULED</span>'}
                     </div>
 
                     <div class="flex items-center justify-between py-4">
-                        <div class="flex flex-col items-center gap-2 w-1/3">
-                            <img src="${match.logoTeam1}" class="w-12 h-12 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
-                        </div>
+                        <img src="${match.logoTeam1}" class="w-12 h-12 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
                         <div class="text-[10px] font-black text-slate-800 italic">VS</div>
-                        <div class="flex flex-col items-center gap-2 w-1/3">
-                            <img src="${match.logoTeam2}" class="w-12 h-12 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
-                        </div>
+                        <img src="${match.logoTeam2}" class="w-12 h-12 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
                     </div>
 
                     <div class="text-center">
                         <h3 class="font-bold text-sm text-sky-100 line-clamp-1 uppercase">${match.name}</h3>
-                        <p class="text-[10px] text-slate-500 mt-1">${isLive ? 'Playing Now' : 'Starts: ' + startTime.toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</p>
+                        <p class="text-[9px] text-slate-500 mt-1">${isLive ? 'Match in Progress' : 'Starts: ' + startTime.toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</p>
                     </div>
 
                     ${isLive 
@@ -124,7 +139,6 @@
                 `;
                 grid.appendChild(card);
             });
-            document.getElementById('match-count').innerText = `${parties.length} TOTAL MATCHES`;
         }
 
         function openPlayer(url) {
