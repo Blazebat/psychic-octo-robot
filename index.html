@@ -1,295 +1,171 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="referrer" content="no-referrer">
-<title>Streamcenter | By RageTV</title>
-<link rel="icon" href="logo.png">
-
-<style>
-  body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #050505; color: #fff; margin: 0; padding: 0; }
-  
-  header { 
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    background-color: #0f0f0f; 
-    padding: 20px 15px; 
-    border-bottom: 1px solid #1f1f1f;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  
-  .logo-area { text-align: center; margin-bottom: 15px; }
-  .logo-area h1 { margin: 0; font-size: 28px; font-weight: 900; letter-spacing: -1.5px; font-style: italic; }
-  .logo-area span { color: #3b82f6; }
-  .logo-area p { margin: 0; font-size: 10px; text-transform: uppercase; letter-spacing: 4px; opacity: 0.6; font-weight: bold; }
-
-  #searchBar {
-    width: 90%; max-width: 600px; padding: 12px 25px; border-radius: 30px;
-    border: 1px solid #2a2a2a; background: #181818; color: #fff; font-size: 14px; outline: none; transition: 0.3s ease;
-  }
-  #searchBar:focus { border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); background: #202020; }
-
-  .category-title {
-    margin: 35px 20px 15px; font-size: 14px; border-left: 3px solid #3b82f6; padding-left: 12px;
-    text-transform: uppercase; letter-spacing: 2px; color: #888; font-weight: 800;
-  }
-  
-  .live-title { border-left-color: #ef4444; color: #ef4444; }
-
-  .container {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 20px; padding: 0 20px 30px;
-  }
-
-  .card {
-    background: #121212; border-radius: 14px; overflow: hidden;
-    position: relative; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-    cursor: pointer; border: 1px solid #1f1f1f;
-  }
-  .card:hover { transform: translateY(-8px); border-color: #3b82f6; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-  
-  .card img { width: 100%; height: 180px; object-fit: cover; opacity: 0.6; transition: 0.4s; }
-  .card:hover img { opacity: 0.9; }
-
-  .live-badge {
-    background: #ef4444; color: white; font-size: 10px; padding: 4px 10px;
-    border-radius: 5px; position: absolute; top: 15px; left: 15px; font-weight: 900; z-index: 10;
-    box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); animation: pulse 1.5s infinite;
-  }
-
-  .info { padding: 18px; }
-  .category-label { font-size: 11px; font-weight: 800; color: #3b82f6; text-transform: uppercase; margin-bottom: 6px; }
-  .title { font-size: 17px; font-weight: 700; margin-bottom: 12px; line-height: 1.3; height: 44px; overflow: hidden; }
-  
-  .details { font-size: 12px; opacity: 0.6; margin-top: 6px; display: flex; align-items: center; gap: 8px; }
-  
-  .timer { 
-    font-size: 12px; font-weight: 700; background: rgba(59, 130, 246, 0.1); 
-    color: #3b82f6; padding: 6px 12px; border-radius: 6px; display: inline-block; margin-top: 10px;
-  }
-  .timer.soon { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-
-  @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-
-  #playerContainer {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    display: none; background: #000; z-index: 9999;
-  }
-  #player { width: 100%; height: 100%; border: none; }
-  #closeBtn {
-    position: absolute; top: 20px; right: 20px; background: #ef4444;
-    color: #fff; border: none; padding: 10px 20px; font-size: 13px; font-weight: bold;
-    border-radius: 8px; cursor: pointer; z-index: 10000; text-transform: uppercase;
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streamcenter | Live Sports by RageTV</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Oxanium', sans-serif; background-color: #0b0f1a; color: #ffffff; overflow-x: hidden; }
+        .sport-card { background: linear-gradient(145deg, #161b2c, #0b0f1a); transition: all 0.3s ease; }
+        .sport-card:hover { transform: translateY(-5px); border-color: #38bdf8; box-shadow: 0 10px 30px -10px rgba(56, 189, 248, 0.3); }
+        .live-dot { width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-right: 5px; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        /* Modal Animation */
+        #video-modal { transition: opacity 0.3s ease-in-out; }
+        #video-modal.hidden { display: none; opacity: 0; }
+        #video-modal.flex { display: flex; opacity: 1; }
+    </style>
 </head>
+<body class="pb-20">
 
-<body>
-<header>
-  <div class="logo-area">
-      <h1>STREAM<span>CENTER</span></h1>
-      <p>By RageTV</p>
-  </div>
-  <input type="text" id="searchBar" placeholder="Search events, teams, or leagues...">
-</header>
+    <nav class="bg-black/60 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <img src="https://streamcenter.pro/logo.png" alt="Logo" class="h-10">
+                <div class="leading-tight">
+                    <h1 class="font-bold text-lg uppercase tracking-wider">Streamcenter</h1>
+                    <p class="text-[10px] text-sky-400 font-bold uppercase tracking-[0.2em]">By RageTV</p>
+                </div>
+            </div>
+            <div id="status-tag" class="text-[10px] bg-white/10 px-3 py-1 rounded-full border border-white/20 text-slate-400 uppercase font-bold">
+                System Online
+            </div>
+        </div>
+    </nav>
 
-<div id="streamsContainer"></div>
+    <div class="bg-slate-900/50 border-b border-white/5 overflow-x-auto no-scrollbar">
+        <div id="category-list" class="container mx-auto px-4 py-4 flex gap-4 whitespace-nowrap">
+            </div>
+    </div>
 
-<div id="playerContainer">
-  <button id="closeBtn">Close Stream</button>
-  <iframe id="player" allowfullscreen allow="autoplay; encrypted-media"></iframe>
-</div>
+    <main class="container mx-auto px-4 py-8">
+        <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center gap-2">
+                <span class="live-dot"></span>
+                <h2 class="text-xl font-extrabold uppercase italic tracking-tight">Live Match Center</h2>
+            </div>
+        </div>
 
-<script>
-let allStreams = [];
-// Direct API URL without Proxy
-const API_URL = "https://api.ppv.to/api/streams";
+        <div id="parties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div class="animate-pulse bg-white/5 h-64 rounded-2xl"></div>
+            <div class="animate-pulse bg-white/5 h-64 rounded-2xl"></div>
+            <div class="animate-pulse bg-white/5 h-64 rounded-2xl"></div>
+        </div>
+    </main>
 
-async function loadStreams() {
-  try {
-    // Direct fetch call
-    const res = await fetch(API_URL);
-    const data = await res.json();
+    <div id="video-modal" class="fixed inset-0 z-[100] hidden bg-black/95 items-center justify-center p-4">
+        <div class="relative w-full max-w-5xl aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-white/10">
+            <button onclick="closePlayer()" class="absolute top-4 right-4 z-[110] bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition">
+                CLOSE PLAYER
+            </button>
+            <iframe id="player-frame" src="" class="w-full h-full" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+        </div>
+    </div>
 
-    allStreams = [];
-    data.forEach(cat => {
-      const filtered = cat.streams.filter(s =>
-        !s.name.toLowerCase().includes("24/7") &&
-        !s.name.toLowerCase().includes("test")
-      );
-      if (filtered.length > 0) {
-        allStreams.push({ category: cat.category, streams: filtered });
-      }
-    });
+    <script>
+        const API_PARTIES = 'https://backend.streamcenter.live/api/Parties?pageNumber=1&pageSize=50';
+        const API_CATEGORIES = 'https://backend.streamcenter.live/api/Categories';
 
-    displayStreams(allStreams);
-  } catch (error) {
-    console.error("Direct Fetch Failed (Likely CORS):", error);
-    document.getElementById("streamsContainer").innerHTML = `
-        <div style="text-align:center; padding-top:100px;">
-            <p style="color:#ef4444; font-weight:bold;">CONNECTION BLOCKED</p>
-            <p style="font-size:12px; color:#555;">Browser security (CORS) is preventing direct access to the API.</p>
-        </div>`;
-  }
-}
+        async function init() {
+            try {
+                const [catRes, partyRes] = await Promise.all([
+                    fetch(API_CATEGORIES),
+                    fetch(API_PARTIES)
+                ]);
 
-function displayStreams(groups) {
-  const container = document.getElementById("streamsContainer");
-  container.innerHTML = "";
-  const now = Math.floor(Date.now() / 1000);
+                const categories = await catRes.json();
+                const partiesData = await partyRes.json();
+                const parties = partiesData.items || partiesData;
 
-  const live = [];
-  const upcomingGroups = [];
-
-  groups.forEach(group => {
-    const upcoming = [];
-    group.streams.forEach(s => {
-      const isLive = now >= s.starts_at && now <= s.ends_at;
-      s.category = group.category;
-      if (isLive) live.push(s);
-      else upcoming.push(s);
-    });
-    if (upcoming.length > 0) upcomingGroups.push({ category: group.category, streams: upcoming });
-  });
-
-  if (live.length > 0) {
-    createSection(container, "🔴 Live Now", live, true);
-  }
-
-  upcomingGroups.forEach(group => {
-    createSection(container, group.category, group.streams, false);
-  });
-}
-
-function createSection(parent, titleText, streams, isLiveSection) {
-    const title = document.createElement("h2");
-    title.className = "category-title" + (isLiveSection ? " live-title" : "");
-    title.textContent = titleText;
-    parent.appendChild(title);
-
-    const grid = document.createElement("div");
-    grid.className = "container";
-    streams.forEach(s => grid.appendChild(createCard(s, isLiveSection)));
-    parent.appendChild(grid);
-}
-
-function formatPHT(unix) {
-  return new Date(unix * 1000).toLocaleString('en-US', { 
-    timeZone: 'Asia/Manila', 
-    month: 'short', day: '2-digit', 
-    hour: '2-digit', minute: '2-digit', hour12: true 
-  });
-}
-
-function createCard(stream, isLive) {
-  const card = document.createElement("div");
-  card.className = "card";
-  card.dataset.startTime = stream.starts_at;
-
-  const img = document.createElement("img");
-  img.src = stream.poster;
-
-  const info = document.createElement("div");
-  info.className = "info";
-
-  const category = document.createElement("div");
-  category.className = "category-label";
-  category.textContent = stream.category;
-
-  const title = document.createElement("div");
-  title.className = "title";
-  title.textContent = stream.name;
-
-  const details = document.createElement("div");
-  details.className = "details";
-  details.innerHTML = `<span>📅 PHT: ${formatPHT(stream.starts_at)}</span> • <span>📺 ${stream.tag}</span>`;
-
-  const timer = document.createElement("div");
-  timer.className = "timer";
-
-  if (isLive) {
-    const badge = document.createElement("div");
-    badge.className = "live-badge";
-    badge.textContent = "LIVE";
-    card.appendChild(badge);
-    timer.style.display = "none";
-  } else {
-    updateTimer(timer, stream.starts_at);
-  }
-
-  info.appendChild(category);
-  info.appendChild(title);
-  info.appendChild(details);
-  info.appendChild(timer);
-
-  card.appendChild(img);
-  card.appendChild(info);
-
-  card.addEventListener("click", () => {
-      document.getElementById("playerContainer").style.display = "block";
-      document.getElementById("player").src = stream.iframe + "?noads=true";
-      document.body.style.overflow = "hidden";
-  });
-
-  return card;
-}
-
-function updateTimer(el, startTime) {
-  const now = Math.floor(Date.now() / 1000);
-  const diff = startTime - now;
-
-  if (diff <= 0) {
-    el.textContent = "STARTED";
-    el.classList.add("soon");
-    return;
-  }
-
-  const hrs = Math.floor(diff / 3600);
-  const mins = Math.floor((diff % 3600) / 60);
-  
-  if (hrs > 24) {
-      el.textContent = `Starts in ${Math.floor(hrs/24)}d ${hrs%24}h`;
-  } else {
-      el.textContent = `Starts in ${hrs}h ${mins}m`;
-  }
-  
-  if (diff <= 3600) el.classList.add("soon");
-}
-
-document.getElementById("closeBtn").addEventListener("click", () => {
-  document.getElementById("player").src = "";
-  document.getElementById("playerContainer").style.display = "none";
-  document.body.style.overflow = "auto";
-});
-
-document.getElementById("searchBar").addEventListener("input", (e) => {
-  const term = e.target.value.toLowerCase();
-  if (!term) return displayStreams(allStreams);
-
-  const filtered = allStreams.map(group => {
-    const streams = group.streams.filter(s =>
-      s.name.toLowerCase().includes(term) ||
-      group.category.toLowerCase().includes(term)
-    );
-    return { category: group.category, streams };
-  }).filter(g => g.streams.length > 0);
-
-  displayStreams(filtered);
-});
-
-loadStreams();
-setInterval(() => {
-    document.querySelectorAll(".timer").forEach(el => {
-        const card = el.closest(".card");
-        if (card && card.dataset.startTime) {
-            updateTimer(el, parseInt(card.dataset.startTime));
+                renderCategories(categories);
+                renderMatches(parties, categories);
+            } catch (err) {
+                console.error("Initialization failed:", err);
+                document.getElementById('parties-grid').innerHTML = `<p class="col-span-full text-center text-red-400">Error loading data. Check console.</p>`;
+            }
         }
-    });
-}, 60000);
-</script>
+
+        function renderCategories(categories) {
+            const container = document.getElementById('category-list');
+            container.innerHTML = `<button onclick="filterByCat('all')" class="bg-sky-500 text-black px-5 py-2 rounded-full text-xs font-bold uppercase transition">All Events</button>`;
+
+            categories.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.className = "bg-white/5 border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase flex items-center gap-2 hover:border-sky-500 transition";
+                btn.innerHTML = `
+                    <img src="${cat.imagePath}" class="w-4 h-4 object-contain" alt="">
+                    ${cat.name}
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        function renderMatches(parties, categories) {
+            const grid = document.getElementById('parties-grid');
+            grid.innerHTML = '';
+
+            parties.forEach(match => {
+                const category = categories.find(c => c.id === match.categoryId);
+                
+                // Clean the video URL (remove the <English or similar tags)
+                const cleanUrl = match.videoUrl.split('<')[0].trim();
+
+                const card = document.createElement('div');
+                card.className = "sport-card rounded-2xl border border-white/10 p-5 flex flex-col gap-4";
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500">
+                        <span class="flex items-center gap-1">
+                            <img src="${category?.imagePath || ''}" class="w-3 h-3 grayscale"> 
+                            ${category?.name || 'Live'}
+                        </span>
+                        <span class="text-emerald-400">Live Now</span>
+                    </div>
+
+                    <div class="flex items-center justify-between px-2">
+                        <img src="${match.logoTeam1}" class="w-14 h-14 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
+                        <div class="text-xs font-black text-slate-700 italic">VS</div>
+                        <img src="${match.logoTeam2}" class="w-14 h-14 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
+                    </div>
+
+                    <div class="text-center">
+                        <h3 class="font-bold text-sm leading-tight mb-1 text-sky-100">${match.name}</h3>
+                        <p class="text-[10px] text-slate-500 line-clamp-1">${match.description}</p>
+                    </div>
+
+                    <button onclick="openPlayer('${cleanUrl}')" 
+                       class="mt-auto bg-sky-600 hover:bg-sky-400 text-white hover:text-black py-3 rounded-xl font-black uppercase text-[11px] tracking-wider transition-all duration-300">
+                        WATCH LIVE
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Modal Functions
+        function openPlayer(url) {
+            const modal = document.getElementById('video-modal');
+            const iframe = document.getElementById('player-frame');
+            iframe.src = url;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden'; // Prevent scrolling
+        }
+
+        function closePlayer() {
+            const modal = document.getElementById('video-modal');
+            const iframe = document.getElementById('player-frame');
+            iframe.src = ""; // Stop the stream audio
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        init();
+    </script>
 </body>
 </html>
