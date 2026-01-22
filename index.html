@@ -14,7 +14,6 @@
         @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* Modal Animation */
         #video-modal { transition: opacity 0.3s ease-in-out; }
         #video-modal.hidden { display: none; opacity: 0; }
         #video-modal.flex { display: flex; opacity: 1; }
@@ -53,7 +52,6 @@
         <div id="parties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <div class="animate-pulse bg-white/5 h-64 rounded-2xl"></div>
             <div class="animate-pulse bg-white/5 h-64 rounded-2xl"></div>
-            <div class="animate-pulse bg-white/5 h-64 rounded-2xl"></div>
         </div>
     </main>
 
@@ -67,8 +65,11 @@
     </div>
 
     <script>
-        const API_PARTIES = 'https://backend.streamcenter.live/api/Parties?pageNumber=1&pageSize=50';
+        const API_PARTIES = 'https://backend.streamcenter.live/api/Parties?pageNumber=1&pageSize=100';
         const API_CATEGORIES = 'https://backend.streamcenter.live/api/Categories';
+
+        let allParties = [];
+        let allCategories = [];
 
         async function init() {
             try {
@@ -77,15 +78,23 @@
                     fetch(API_PARTIES)
                 ]);
 
-                const categories = await catRes.json();
+                allCategories = await catRes.json();
                 const partiesData = await partyRes.json();
-                const parties = partiesData.items || partiesData;
+                allParties = partiesData.items || partiesData;
 
-                renderCategories(categories);
-                renderMatches(parties, categories);
+                // --- SORTING LOGIC ---
+                // Extracts the number from "ch72.php" and sorts ascending (1, 2, 3...)
+                allParties.sort((a, b) => {
+                    const numA = parseInt(a.videoUrl.match(/ch(\d+)/)?.[1]) || 0;
+                    const numB = parseInt(b.videoUrl.match(/ch(\d+)/)?.[1]) || 0;
+                    return numA - numB;
+                });
+
+                renderCategories(allCategories);
+                renderMatches(allParties);
             } catch (err) {
                 console.error("Initialization failed:", err);
-                document.getElementById('parties-grid').innerHTML = `<p class="col-span-full text-center text-red-400">Error loading data. Check console.</p>`;
+                document.getElementById('parties-grid').innerHTML = `<p class="col-span-full text-center text-red-400">Error loading data.</p>`;
             }
         }
 
@@ -95,7 +104,9 @@
 
             categories.forEach(cat => {
                 const btn = document.createElement('button');
-                btn.className = "bg-white/5 border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase flex items-center gap-2 hover:border-sky-500 transition";
+                btn.className = "bg-white/5 border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase flex items-center gap-2 hover:border-sky-500 transition text-white";
+                // Pass category ID to the filter function
+                btn.onclick = () => filterByCat(cat.id);
                 btn.innerHTML = `
                     <img src="${cat.imagePath}" class="w-4 h-4 object-contain" alt="">
                     ${cat.name}
@@ -104,15 +115,37 @@
             });
         }
 
-        function renderMatches(parties, categories) {
+        function filterByCat(catId) {
+            if (catId === 'all') {
+                renderMatches(allParties);
+            } else {
+                const filtered = allParties.filter(party => party.categoryId === catId);
+                renderMatches(filtered);
+            }
+            
+            // UI Feedback: Update button colors (Optional)
+            const btns = document.querySelectorAll('#category-list button');
+            btns.forEach(btn => {
+                btn.classList.replace('bg-sky-500', 'bg-white/5');
+                btn.classList.replace('text-black', 'text-white');
+            });
+            event.currentTarget.classList.replace('bg-white/5', 'bg-sky-500');
+            event.currentTarget.classList.replace('text-white', 'text-black');
+        }
+
+        function renderMatches(parties) {
             const grid = document.getElementById('parties-grid');
             grid.innerHTML = '';
 
+            if (parties.length === 0) {
+                grid.innerHTML = `<p class="col-span-full text-center text-slate-500 py-10">No live events found in this category.</p>`;
+                return;
+            }
+
             parties.forEach(match => {
-                const category = categories.find(c => c.id === match.categoryId);
-                
-                // Clean the video URL (remove the <English or similar tags)
+                const category = allCategories.find(c => c.id === match.categoryId);
                 const cleanUrl = match.videoUrl.split('<')[0].trim();
+                const chNumber = match.videoUrl.match(/ch(\d+)/)?.[1] || "??";
 
                 const card = document.createElement('div');
                 card.className = "sport-card rounded-2xl border border-white/10 p-5 flex flex-col gap-4";
@@ -123,7 +156,7 @@
                             <img src="${category?.imagePath || ''}" class="w-3 h-3 grayscale"> 
                             ${category?.name || 'Live'}
                         </span>
-                        <span class="text-emerald-400">Live Now</span>
+                        <span class="text-sky-400">CH ${chNumber}</span>
                     </div>
 
                     <div class="flex items-center justify-between px-2">
@@ -146,20 +179,19 @@
             });
         }
 
-        // Modal Functions
         function openPlayer(url) {
             const modal = document.getElementById('video-modal');
             const iframe = document.getElementById('player-frame');
             iframe.src = url;
             modal.classList.remove('hidden');
             modal.classList.add('flex');
-            document.body.style.overflow = 'hidden'; // Prevent scrolling
+            document.body.style.overflow = 'hidden';
         }
 
         function closePlayer() {
             const modal = document.getElementById('video-modal');
             const iframe = document.getElementById('player-frame');
-            iframe.src = ""; // Stop the stream audio
+            iframe.src = "";
             modal.classList.remove('flex');
             modal.classList.add('hidden');
             document.body.style.overflow = 'auto';
