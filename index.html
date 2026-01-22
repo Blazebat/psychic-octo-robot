@@ -8,11 +8,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Oxanium', sans-serif; background-color: #0b0f1a; color: #ffffff; overflow-x: hidden; }
-        .sport-card { background: linear-gradient(145deg, #161b2c, #0b0f1a); border: 1px solid rgba(255,255,255,0.05); transition: all 0.3s ease; }
+        .sport-card { background: linear-gradient(145deg, #161b2c, #0b0f1a); transition: all 0.3s ease; }
         .sport-card:hover { transform: translateY(-5px); border-color: #38bdf8; box-shadow: 0 10px 30px -10px rgba(56, 189, 248, 0.3); }
-        .live-pulse { width: 6px; height: 6px; background-color: #10b981; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.3); } 100% { opacity: 1; transform: scale(1); } }
+        .live-dot { width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-right: 5px; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        /* Modal Animation */
+        #video-modal { transition: opacity 0.3s ease-in-out; }
+        #video-modal.hidden { display: none; opacity: 0; }
+        #video-modal.flex { display: flex; opacity: 1; }
     </style>
 </head>
 <body class="pb-20">
@@ -22,149 +27,114 @@
             <div class="flex items-center gap-4">
                 <img src="https://streamcenter.pro/logo.png" alt="Logo" class="h-10">
                 <div class="leading-tight">
-                    <h1 class="font-bold text-lg uppercase tracking-wider text-white">Streamcenter</h1>
+                    <h1 class="font-bold text-lg uppercase tracking-wider">Streamcenter</h1>
                     <p class="text-[10px] text-sky-400 font-bold uppercase tracking-[0.2em]">By RageTV</p>
                 </div>
             </div>
-            <div id="status-tag" class="text-[10px] bg-white/10 px-3 py-1 rounded-full border border-white/20 text-slate-400 uppercase font-bold">System Online</div>
+            <div id="status-tag" class="text-[10px] bg-white/10 px-3 py-1 rounded-full border border-white/20 text-slate-400 uppercase font-bold">
+                System Online
+            </div>
         </div>
     </nav>
 
     <div class="bg-slate-900/50 border-b border-white/5 overflow-x-auto no-scrollbar">
-        <div id="category-list" class="container mx-auto px-4 py-4 flex gap-4 whitespace-nowrap"></div>
+        <div id="category-list" class="container mx-auto px-4 py-4 flex gap-4 whitespace-nowrap">
+            </div>
     </div>
 
     <main class="container mx-auto px-4 py-8">
         <div class="flex items-center justify-between mb-8">
             <div class="flex items-center gap-2">
-                <span class="w-2 h-2 bg-sky-500 rounded-full"></span>
-                <h2 class="text-xl font-extrabold uppercase italic tracking-tight text-white">Live Match Center</h2>
+                <span class="live-dot"></span>
+                <h2 class="text-xl font-extrabold uppercase italic tracking-tight">Live Match Center</h2>
             </div>
         </div>
-        <div id="parties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+
+        <div id="parties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div class="animate-pulse bg-white/5 h-64 rounded-2xl"></div>
+            <div class="animate-pulse bg-white/5 h-64 rounded-2xl"></div>
+            <div class="animate-pulse bg-white/5 h-64 rounded-2xl"></div>
+        </div>
     </main>
 
     <div id="video-modal" class="fixed inset-0 z-[100] hidden bg-black/95 items-center justify-center p-4">
         <div class="relative w-full max-w-5xl aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-white/10">
-            <button onclick="closePlayer()" class="absolute top-4 right-4 z-[110] bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition">CLOSE PLAYER</button>
+            <button onclick="closePlayer()" class="absolute top-4 right-4 z-[110] bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition">
+                CLOSE PLAYER
+            </button>
             <iframe id="player-frame" src="" class="w-full h-full" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>
         </div>
     </div>
 
     <script>
-        const API_PARTIES = 'https://backend.streamcenter.live/api/Parties?pageNumber=1&pageSize=100';
+        const API_PARTIES = 'https://backend.streamcenter.live/api/Parties?pageNumber=1&pageSize=50';
         const API_CATEGORIES = 'https://backend.streamcenter.live/api/Categories';
-
-        let allParties = [];
-        let allCategories = [];
 
         async function init() {
             try {
-                const [catRes, partyRes] = await Promise.all([fetch(API_CATEGORIES), fetch(API_PARTIES)]);
-                allCategories = await catRes.json();
+                const [catRes, partyRes] = await Promise.all([
+                    fetch(API_CATEGORIES),
+                    fetch(API_PARTIES)
+                ]);
+
+                const categories = await catRes.json();
                 const partiesData = await partyRes.json();
-                
-                allParties = Array.isArray(partiesData) ? partiesData : (partiesData.items || []);
+                const parties = partiesData.items || partiesData;
 
-                // SORTING: Ascending based on Ch number
-                allParties.sort((a, b) => {
-                    const getChNum = (url) => {
-                        const match = url.match(/ch(\d+)/);
-                        return match ? parseInt(match[1]) : 999;
-                    };
-                    return getChNum(a.videoUrl) - getChNum(b.videoUrl);
-                });
-
-                renderCategories(allCategories);
-                renderMatches(allParties);
+                renderCategories(categories);
+                renderMatches(parties, categories);
             } catch (err) {
-                console.error("Fetch Error:", err);
+                console.error("Initialization failed:", err);
+                document.getElementById('parties-grid').innerHTML = `<p class="col-span-full text-center text-red-400">Error loading data. Check console.</p>`;
             }
         }
 
         function renderCategories(categories) {
             const container = document.getElementById('category-list');
-            container.innerHTML = `<button onclick="filterByCat('all', this)" class="bg-sky-500 text-black px-5 py-2 rounded-full text-xs font-bold uppercase transition">All Events</button>`;
+            container.innerHTML = `<button onclick="filterByCat('all')" class="bg-sky-500 text-black px-5 py-2 rounded-full text-xs font-bold uppercase transition">All Events</button>`;
+
             categories.forEach(cat => {
                 const btn = document.createElement('button');
-                btn.className = "bg-white/5 border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase flex items-center gap-2 hover:border-sky-500 transition text-white";
-                btn.onclick = (e) => filterByCat(cat.id, e.currentTarget);
-                btn.innerHTML = `<img src="${cat.imagePath}" class="w-4 h-4 object-contain"> ${cat.name}`;
+                btn.className = "bg-white/5 border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase flex items-center gap-2 hover:border-sky-500 transition";
+                btn.innerHTML = `
+                    <img src="${cat.imagePath}" class="w-4 h-4 object-contain" alt="">
+                    ${cat.name}
+                `;
                 container.appendChild(btn);
             });
         }
 
-        function filterByCat(catId, btnElement) {
-            const filtered = catId === 'all' ? allParties : allParties.filter(p => p.categoryId === catId);
-            renderMatches(filtered);
-            document.querySelectorAll('#category-list button').forEach(btn => {
-                btn.classList.remove('bg-sky-500', 'text-black');
-                btn.classList.add('bg-white/5', 'text-white');
-            });
-            btnElement.classList.add('bg-sky-500', 'text-black');
-            btnElement.classList.remove('bg-white/5', 'text-white');
-        }
-
-        function formatTime(isoStr) {
-            if (!isoStr) return "--:--";
-            return new Date(isoStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-        }
-
-        function renderMatches(parties) {
+        function renderMatches(parties, categories) {
             const grid = document.getElementById('parties-grid');
             grid.innerHTML = '';
-            const now = new Date();
 
             parties.forEach(match => {
-                const category = allCategories.find(c => c.id === match.categoryId);
-                // Using your specific backend keys
-                const startTime = new Date(match.beginPartie);
-                const endTime = new Date(match.endPartie);
-                const isLive = now >= startTime && now <= endTime;
+                const category = categories.find(c => c.id === match.categoryId);
                 
+                // Clean the video URL (remove the <English or similar tags)
                 const cleanUrl = match.videoUrl.split('<')[0].trim();
-                const chNumber = match.videoUrl.match(/ch(\d+)/)?.[1] || "??";
 
                 const card = document.createElement('div');
-                card.className = "sport-card rounded-2xl p-5 flex flex-col gap-4";
+                card.className = "sport-card rounded-2xl border border-white/10 p-5 flex flex-col gap-4";
                 
                 card.innerHTML = `
-                    <div class="flex justify-between items-center text-[10px] font-bold uppercase">
-                        <span class="flex items-center gap-1 text-slate-500">
-                            <img src="${category?.imagePath || ''}" class="w-3 h-3 grayscale"> ${category?.name || 'Live'}
+                    <div class="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500">
+                        <span class="flex items-center gap-1">
+                            <img src="${category?.imagePath || ''}" class="w-3 h-3 grayscale"> 
+                            ${category?.name || 'Live'}
                         </span>
-                        <span class="${isLive ? 'text-emerald-400' : 'text-slate-500'} flex items-center gap-1">
-                            ${isLive ? '<span class="live-pulse"></span> LIVE' : 'UPCOMING'}
-                        </span>
+                        <span class="text-emerald-400">Live Now</span>
                     </div>
 
-                    <div class="bg-black/40 p-3 rounded-xl border border-white/5">
-                        <div class="flex justify-between items-center mb-2 border-b border-white/5 pb-1">
-                            <span class="text-[9px] text-sky-400 font-bold uppercase">Channel ${chNumber}</span>
-                            <span class="text-[9px] text-white font-bold">${startTime.toLocaleDateString('en-US', {month:'short', day:'numeric'})}</span>
-                        </div>
-                        <div class="flex justify-between text-center">
-                            <div class="flex flex-col flex-1">
-                                <span class="text-[7px] text-slate-500 uppercase">Start</span>
-                                <span class="text-[10px] font-black text-white">${formatTime(match.beginPartie)}</span>
-                            </div>
-                            <div class="w-[1px] bg-white/10 mx-2"></div>
-                            <div class="flex flex-col flex-1">
-                                <span class="text-[7px] text-slate-500 uppercase">End</span>
-                                <span class="text-[10px] font-black text-white">${formatTime(match.endPartie)}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center justify-around py-2">
-                        <img src="${match.logoTeam1}" class="w-12 h-12 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
-                        <span class="text-[10px] font-black text-slate-700 italic">VS</span>
-                        <img src="${match.logoTeam2}" class="w-12 h-12 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
+                    <div class="flex items-center justify-between px-2">
+                        <img src="${match.logoTeam1}" class="w-14 h-14 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
+                        <div class="text-xs font-black text-slate-700 italic">VS</div>
+                        <img src="${match.logoTeam2}" class="w-14 h-14 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
                     </div>
 
                     <div class="text-center">
-                        <h3 class="font-bold text-sm leading-tight text-white mb-1 line-clamp-1">${match.name}</h3>
-                        <p class="text-[9px] text-slate-500 font-bold line-clamp-1 uppercase">${match.description || 'Live Broadcast'}</p>
+                        <h3 class="font-bold text-sm leading-tight mb-1 text-sky-100">${match.name}</h3>
+                        <p class="text-[10px] text-slate-500 line-clamp-1">${match.description}</p>
                     </div>
 
                     <button onclick="openPlayer('${cleanUrl}')" 
@@ -176,19 +146,22 @@
             });
         }
 
+        // Modal Functions
         function openPlayer(url) {
             const modal = document.getElementById('video-modal');
             const iframe = document.getElementById('player-frame');
             iframe.src = url;
-            modal.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden'; // Prevent scrolling
         }
 
         function closePlayer() {
             const modal = document.getElementById('video-modal');
             const iframe = document.getElementById('player-frame');
-            iframe.src = "";
-            modal.style.display = 'none';
+            iframe.src = ""; // Stop the stream audio
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
             document.body.style.overflow = 'auto';
         }
 
