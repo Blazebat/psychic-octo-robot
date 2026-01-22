@@ -1,4 +1,4 @@
-name = "youtube-proxy-worker"
+name = "ytprox"
 main = "workers.js"
 compatibility_date = "2025-09-04"
 
