@@ -8,10 +8,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Oxanium', sans-serif; background-color: #0b0f1a; color: #ffffff; overflow-x: hidden; }
-        .sport-card { background: linear-gradient(145deg, #161b2c, #0b0f1a); transition: all 0.3s ease; }
+        .sport-card { background: linear-gradient(145deg, #161b2c, #0b0f1a); transition: all 0.3s ease; position: relative; border: 1px solid rgba(255,255,255,0.05); }
         .sport-card:hover { transform: translateY(-5px); border-color: #38bdf8; box-shadow: 0 10px 30px -10px rgba(56, 189, 248, 0.3); }
-        .live-dot { width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-right: 5px; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
+        .live-pulse { width: 6px; height: 6px; background-color: #10b981; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.3); } 100% { opacity: 1; transform: scale(1); } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
         #video-modal { transition: opacity 0.3s ease-in-out; }
@@ -26,7 +26,7 @@
             <div class="flex items-center gap-4">
                 <img src="https://streamcenter.pro/logo.png" alt="Logo" class="h-10">
                 <div class="leading-tight">
-                    <h1 class="font-bold text-lg uppercase tracking-wider">Streamcenter</h1>
+                    <h1 class="font-bold text-lg uppercase tracking-wider text-white">Streamcenter</h1>
                     <p class="text-[10px] text-sky-400 font-bold uppercase tracking-[0.2em]">By RageTV</p>
                 </div>
             </div>
@@ -37,21 +37,20 @@
     </nav>
 
     <div class="bg-slate-900/50 border-b border-white/5 overflow-x-auto no-scrollbar">
-        <div id="category-list" class="container mx-auto px-4 py-4 flex gap-4 whitespace-nowrap">
-            </div>
+        <div id="category-list" class="container mx-auto px-4 py-4 flex gap-4 whitespace-nowrap"></div>
     </div>
 
     <main class="container mx-auto px-4 py-8">
         <div class="flex items-center justify-between mb-8">
             <div class="flex items-center gap-2">
-                <span class="live-dot"></span>
-                <h2 class="text-xl font-extrabold uppercase italic tracking-tight">Live Match Center</h2>
+                <span class="w-2 h-2 bg-sky-500 rounded-full"></span>
+                <h2 class="text-xl font-extrabold uppercase italic tracking-tight text-white">Match Schedule</h2>
             </div>
         </div>
 
         <div id="parties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <div class="animate-pulse bg-white/5 h-64 rounded-2xl"></div>
-            <div class="animate-pulse bg-white/5 h-64 rounded-2xl"></div>
+            <div class="animate-pulse bg-white/5 h-96 rounded-2xl"></div>
+            <div class="animate-pulse bg-white/5 h-96 rounded-2xl"></div>
         </div>
     </main>
 
@@ -73,17 +72,12 @@
 
         async function init() {
             try {
-                const [catRes, partyRes] = await Promise.all([
-                    fetch(API_CATEGORIES),
-                    fetch(API_PARTIES)
-                ]);
-
+                const [catRes, partyRes] = await Promise.all([fetch(API_CATEGORIES), fetch(API_PARTIES)]);
                 allCategories = await catRes.json();
                 const partiesData = await partyRes.json();
                 allParties = partiesData.items || partiesData;
 
-                // --- SORTING LOGIC ---
-                // Extracts the number from "ch72.php" and sorts ascending (1, 2, 3...)
+                // 1. Numerical Sort based on Channel Number (ch1, ch2, etc)
                 allParties.sort((a, b) => {
                     const numA = parseInt(a.videoUrl.match(/ch(\d+)/)?.[1]) || 0;
                     const numB = parseInt(b.videoUrl.match(/ch(\d+)/)?.[1]) || 0;
@@ -93,81 +87,100 @@
                 renderCategories(allCategories);
                 renderMatches(allParties);
             } catch (err) {
-                console.error("Initialization failed:", err);
-                document.getElementById('parties-grid').innerHTML = `<p class="col-span-full text-center text-red-400">Error loading data.</p>`;
+                console.error("Fetch Error:", err);
             }
         }
 
         function renderCategories(categories) {
             const container = document.getElementById('category-list');
-            container.innerHTML = `<button onclick="filterByCat('all')" class="bg-sky-500 text-black px-5 py-2 rounded-full text-xs font-bold uppercase transition">All Events</button>`;
-
+            container.innerHTML = `<button onclick="filterByCat('all', this)" class="bg-sky-500 text-black px-5 py-2 rounded-full text-xs font-bold uppercase transition">All Events</button>`;
             categories.forEach(cat => {
                 const btn = document.createElement('button');
                 btn.className = "bg-white/5 border border-white/10 px-5 py-2 rounded-full text-xs font-bold uppercase flex items-center gap-2 hover:border-sky-500 transition text-white";
-                // Pass category ID to the filter function
-                btn.onclick = () => filterByCat(cat.id);
-                btn.innerHTML = `
-                    <img src="${cat.imagePath}" class="w-4 h-4 object-contain" alt="">
-                    ${cat.name}
-                `;
+                btn.onclick = (e) => filterByCat(cat.id, e.currentTarget);
+                btn.innerHTML = `<img src="${cat.imagePath}" class="w-4 h-4 object-contain"> ${cat.name}`;
                 container.appendChild(btn);
             });
         }
 
-        function filterByCat(catId) {
-            if (catId === 'all') {
-                renderMatches(allParties);
-            } else {
-                const filtered = allParties.filter(party => party.categoryId === catId);
-                renderMatches(filtered);
-            }
-            
-            // UI Feedback: Update button colors (Optional)
-            const btns = document.querySelectorAll('#category-list button');
-            btns.forEach(btn => {
+        function filterByCat(catId, btnElement) {
+            const filtered = catId === 'all' ? allParties : allParties.filter(p => p.categoryId === catId);
+            renderMatches(filtered);
+            document.querySelectorAll('#category-list button').forEach(btn => {
                 btn.classList.replace('bg-sky-500', 'bg-white/5');
                 btn.classList.replace('text-black', 'text-white');
             });
-            event.currentTarget.classList.replace('bg-white/5', 'bg-sky-500');
-            event.currentTarget.classList.replace('text-white', 'text-black');
+            btnElement.classList.replace('bg-white/5', 'bg-sky-500');
+            btnElement.classList.replace('text-white', 'text-black');
+        }
+
+        function formatTime(isoStr) {
+            if (!isoStr) return "--:--";
+            return new Date(isoStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        }
+
+        function formatDate(isoStr) {
+            if (!isoStr) return "";
+            return new Date(isoStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         }
 
         function renderMatches(parties) {
             const grid = document.getElementById('parties-grid');
             grid.innerHTML = '';
-
-            if (parties.length === 0) {
-                grid.innerHTML = `<p class="col-span-full text-center text-slate-500 py-10">No live events found in this category.</p>`;
-                return;
-            }
+            const now = new Date();
 
             parties.forEach(match => {
                 const category = allCategories.find(c => c.id === match.categoryId);
+                const startTime = new Date(match.startTime);
+                const endTime = new Date(match.endTime);
+                const isLive = now >= startTime && now <= endTime;
+                
                 const cleanUrl = match.videoUrl.split('<')[0].trim();
                 const chNumber = match.videoUrl.match(/ch(\d+)/)?.[1] || "??";
 
                 const card = document.createElement('div');
-                card.className = "sport-card rounded-2xl border border-white/10 p-5 flex flex-col gap-4";
+                card.className = "sport-card rounded-2xl p-5 flex flex-col gap-4";
                 
                 card.innerHTML = `
-                    <div class="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500">
-                        <span class="flex items-center gap-1">
-                            <img src="${category?.imagePath || ''}" class="w-3 h-3 grayscale"> 
-                            ${category?.name || 'Live'}
+                    <div class="flex justify-between items-center text-[10px] font-bold uppercase">
+                        <span class="flex items-center gap-1 text-slate-500">
+                            <img src="${category?.imagePath || ''}" class="w-3 h-3 grayscale"> ${category?.name || 'Sports'}
                         </span>
-                        <span class="text-sky-400">CH ${chNumber}</span>
+                        <span class="${isLive ? 'text-emerald-400' : 'text-slate-500'} flex items-center gap-1">
+                            ${isLive ? '<span class="live-pulse"></span> LIVE' : 'UPCOMING'}
+                        </span>
                     </div>
 
-                    <div class="flex items-center justify-between px-2">
-                        <img src="${match.logoTeam1}" class="w-14 h-14 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
-                        <div class="text-xs font-black text-slate-700 italic">VS</div>
-                        <img src="${match.logoTeam2}" class="w-14 h-14 object-contain" onerror="this.src='https://streamcenter.pro/logo.png'">
+                    <div class="flex justify-between items-end border-b border-white/5 pb-2">
+                         <div class="flex flex-col">
+                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Broadcast</span>
+                            <span class="text-xs font-black text-sky-400">CHANNEL ${chNumber}</span>
+                         </div>
+                         <div class="text-right">
+                             <span class="text-[10px] font-black text-white uppercase">${formatDate(match.startTime)}</span>
+                         </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 bg-black/40 p-3 rounded-xl border border-white/5">
+                        <div class="flex flex-col">
+                            <span class="text-[8px] text-slate-500 uppercase font-bold tracking-widest">Start Time</span>
+                            <span class="text-[11px] font-black text-white">${formatTime(match.startTime)}</span>
+                        </div>
+                        <div class="flex flex-col text-right border-l border-white/10 pl-2">
+                            <span class="text-[8px] text-slate-500 uppercase font-bold tracking-widest">End Time</span>
+                            <span class="text-[11px] font-black text-white">${formatTime(match.endTime)}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between px-4 py-2">
+                        <img src="${match.logoTeam1}" class="w-12 h-12 object-contain shadow-xl" onerror="this.src='https://streamcenter.pro/logo.png'">
+                        <span class="text-[10px] font-black text-slate-700 italic">VS</span>
+                        <img src="${match.logoTeam2}" class="w-12 h-12 object-contain shadow-xl" onerror="this.src='https://streamcenter.pro/logo.png'">
                     </div>
 
                     <div class="text-center">
-                        <h3 class="font-bold text-sm leading-tight mb-1 text-sky-100">${match.name}</h3>
-                        <p class="text-[10px] text-slate-500 line-clamp-1">${match.description}</p>
+                        <h3 class="font-bold text-sm leading-tight text-white mb-1 line-clamp-1">${match.name}</h3>
+                        <p class="text-[9px] text-slate-500 font-bold uppercase tracking-tight line-clamp-1">${match.description}</p>
                     </div>
 
                     <button onclick="openPlayer('${cleanUrl}')" 
